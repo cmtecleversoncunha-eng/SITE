@@ -9,6 +9,9 @@ import { CartProvider } from '@/context/CartProvider';
 import { AuthProvider } from '@/context/AuthProvider';
 import { getCompanySettings, getSiteImages } from '@/lib/data';
 
+// Forçar renderização dinâmica para evitar erros de build
+export const dynamic = 'force-dynamic';
+
 // A metadata volta a ser mais simples por enquanto
 export const metadata: Metadata = {
   title: {
