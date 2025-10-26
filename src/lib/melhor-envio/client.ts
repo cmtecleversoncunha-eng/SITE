@@ -17,7 +17,7 @@ class MelhorEnvioClient {
       clientId: process.env.MELHOR_ENVIO_CLIENT_ID || '',
       secret: process.env.MELHOR_ENVIO_SECRET || '',
       apiUrl: process.env.MELHOR_ENVIO_API_URL || 'https://sandbox.melhorenvio.com.br/api/v2',
-      fromZip: process.env.MELHOR_ENVIO_FROM_ZIP || '01310100',
+      fromZip: process.env.MELHOR_ENVIO_FROM_ZIP || '01310-100',
       fromName: process.env.MELHOR_ENVIO_FROM_NAME || 'zark'
     };
 
@@ -45,13 +45,25 @@ class MelhorEnvioClient {
         throw new Error('Token do Melhor Envio não configurado. Atualize as variáveis de ambiente MELHOR_ENVIO_* e reinicie o servidor.');
       }
 
+      // Validar CEPs
+      const fromZipClean = this.config.fromZip.replace(/\D/g, '');
+      const toZipClean = params.toZip.replace(/\D/g, '');
+      
+      if (!await this.validateZipCode(fromZipClean)) {
+        throw new Error(`CEP de origem inválido: ${this.config.fromZip}`);
+      }
+      
+      if (!await this.validateZipCode(toZipClean)) {
+        throw new Error(`CEP de destino inválido: ${params.toZip}`);
+      }
+
       // Preparar dados para a API
       const calculationData: ShippingCalculation = {
         from: {
-          postal_code: this.config.fromZip
+          postal_code: fromZipClean
         },
         to: {
-          postal_code: params.toZip.replace(/\D/g, '') // Remove caracteres não numéricos
+          postal_code: toZipClean
         },
         products: params.products,
         services: '1,2,3,4,17', // Correios (PAC, SEDEX) e Jadlog
@@ -123,12 +135,19 @@ class MelhorEnvioClient {
     const cleanZip = zipCode.replace(/\D/g, '');
     
     if (cleanZip.length !== 8) {
+      console.log(`❌ CEP inválido: ${zipCode} (${cleanZip.length} dígitos)`);
       return false;
     }
 
     // Validação básica de CEP brasileiro
     const cepRegex = /^[0-9]{8}$/;
-    return cepRegex.test(cleanZip);
+    const isValid = cepRegex.test(cleanZip);
+    
+    if (!isValid) {
+      console.log(`❌ CEP inválido: ${zipCode} (formato incorreto)`);
+    }
+    
+    return isValid;
   }
 
   /**
