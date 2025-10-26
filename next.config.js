@@ -27,6 +27,12 @@ const nextConfig = {
         port: '',
         pathname: '/storage/v1/object/public/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'anhqjpqbqeoirvjahpvj.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
     ],
   },
   async headers() {
@@ -54,10 +60,7 @@ const nextConfig = {
       },
     ];
   },
-  // Configuração experimental para HTTPS em desenvolvimento
-  experimental: {
-    httpsServer: process.env.NODE_ENV === 'development' && process.env.HTTPS === 'true',
-  },
+  // Configuração experimental removida - httpsServer não é mais suportado no Next.js 15
 };
 
 module.exports = nextConfig;

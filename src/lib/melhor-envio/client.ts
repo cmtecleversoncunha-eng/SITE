@@ -41,6 +41,10 @@ class MelhorEnvioClient {
     products: MelhorEnvioProduct[];
   }): Promise<ShippingCalculationResponse[]> {
     try {
+      if (!this.config.token) {
+        throw new Error('Token do Melhor Envio não configurado. Atualize as variáveis de ambiente MELHOR_ENVIO_* e reinicie o servidor.');
+      }
+
       // Preparar dados para a API
       const calculationData: ShippingCalculation = {
         from: {
@@ -67,11 +71,13 @@ class MelhorEnvioClient {
         products: calculationData.products.length
       });
 
-      const response = await this.api.get('/shipment/calculate', {
-        params: calculationData
-      });
-      
+      const response = await this.api.post('/me/shipment/calculate', calculationData);
+
       if (!response.data || !Array.isArray(response.data)) {
+        console.error('❌ Corpo inesperado recebido da API do Melhor Envio:', {
+          status: response.status,
+          data: response.data
+        });
         throw new Error('Resposta inválida da API do Melhor Envio');
       }
 
@@ -89,17 +95,24 @@ class MelhorEnvioClient {
 
     } catch (error: any) {
       console.error('❌ Erro ao calcular frete:', error);
-      
-      if (error.response?.data) {
-        const errorData = error.response.data as ShippingError;
-        throw new Error(errorData.message || 'Erro na API do Melhor Envio');
+      if (error.response) {
+        console.error('📦 Resposta bruta da API:', error.response.status, error.response.data);
+        if (error.response.status === 401 || error.response.status === 403) {
+          throw new Error('Credenciais inválidas do Melhor Envio. Verifique o token informado.');
+        }
+        if (error.response.status === 404) {
+          throw new Error('Endpoint de cálculo de frete do Melhor Envio não encontrado. Confirme a URL base configurada.');
+        }
+        if (error.response.status === 405) {
+          throw new Error('Método HTTP não suportado pela API do Melhor Envio. Confirme se o endpoint correto está configurado.');
+        }
       }
       
       if (error.code === 'ECONNABORTED') {
         throw new Error('Timeout na consulta de frete. Tente novamente.');
       }
       
-      throw new Error('Erro interno ao calcular frete');
+      throw new Error(error.message || 'Erro interno ao calcular frete');
     }
   }
 

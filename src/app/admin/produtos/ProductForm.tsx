@@ -12,13 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { ImageUpload } from '@/components/ImageUpload';
 
 const formSchema = z.object({
   name: z.string().min(3, 'O nome deve ter pelo menos 3 caracteres.'),
   slug: z.string().min(3, 'O slug deve ter pelo menos 3 caracteres.'),
   price: z.coerce.number().min(0, 'O preço não pode ser negativo.'),
   description: z.string().min(10, 'A descrição deve ter pelo menos 10 caracteres.'),
-  image: z.string().url('A imagem deve ser uma URL válida.'),
+  image: z.string().optional(),
   featured: z.boolean(),
   categoryId: z.coerce.number(),
   weight: z.coerce.number().min(0.01, 'O peso deve ser maior que 0.'),
@@ -51,14 +52,49 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     },
   });
 
-  function onSubmit(values: FormValues) {
-    console.log(values);
-    // Aqui seria a lógica para salvar no banco de dados
-    toast({
-      title: `Produto ${product ? 'Atualizado' : 'Criado'}!`,
-      description: `O produto "${values.name}" foi salvo com sucesso.`,
-    });
-    router.push('/admin/produtos');
+  async function onSubmit(values: FormValues) {
+    try {
+      console.log('📦 Valores do formulário:', values);
+      
+      const url = product 
+        ? '/api/products'
+        : '/api/products';
+      
+      const method = product ? 'PUT' : 'POST';
+      
+      const requestBody = product 
+        ? { id: product.id, ...values }
+        : values;
+      
+      console.log('📤 Enviando para API:', { method, url, body: requestBody });
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao salvar produto');
+      }
+
+      toast({
+        title: `Produto ${product ? 'Atualizado' : 'Criado'}!`,
+        description: `O produto "${values.name}" foi salvo com sucesso.`,
+      });
+      
+      router.push('/admin/produtos');
+    } catch (error: any) {
+      console.error('Erro ao salvar produto:', error);
+      toast({
+        title: 'Erro',
+        description: error.message || 'Erro ao salvar o produto',
+        variant: 'destructive',
+      });
+    }
   }
 
   return (
@@ -148,9 +184,12 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           name="image"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>URL da Imagem</FormLabel>
               <FormControl>
-                <Input placeholder="https://picsum.photos/seed/product/400/400" {...field} />
+                <ImageUpload
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="https://picsum.photos/seed/product/400/400"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
