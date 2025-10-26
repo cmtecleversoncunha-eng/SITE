@@ -17,9 +17,17 @@ class MelhorEnvioClient {
       clientId: process.env.MELHOR_ENVIO_CLIENT_ID || '',
       secret: process.env.MELHOR_ENVIO_SECRET || '',
       apiUrl: process.env.MELHOR_ENVIO_API_URL || 'https://sandbox.melhorenvio.com.br/api/v2',
-      fromZip: process.env.MELHOR_ENVIO_FROM_ZIP || '01310-100',
+      fromZip: process.env.MELHOR_ENVIO_FROM_ZIP || '01310100',
       fromName: process.env.MELHOR_ENVIO_FROM_NAME || 'zark'
     };
+
+    // Debug: Log das configurações
+    console.log('🔧 Melhor Envio Config:', {
+      fromZip: this.config.fromZip,
+      fromZipClean: this.config.fromZip.replace(/\D/g, ''),
+      apiUrl: this.config.apiUrl,
+      hasToken: !!this.config.token
+    });
 
     this.api = axios.create({
       baseURL: this.config.apiUrl,
@@ -48,6 +56,13 @@ class MelhorEnvioClient {
       // Validar CEPs
       const fromZipClean = this.config.fromZip.replace(/\D/g, '');
       const toZipClean = params.toZip.replace(/\D/g, '');
+      
+      console.log('🔍 Debug CEPs:', {
+        originalFromZip: this.config.fromZip,
+        fromZipClean,
+        originalToZip: params.toZip,
+        toZipClean
+      });
       
       if (!await this.validateZipCode(fromZipClean)) {
         throw new Error(`CEP de origem inválido: ${this.config.fromZip}`);
@@ -145,6 +160,13 @@ class MelhorEnvioClient {
     
     if (!isValid) {
       console.log(`❌ CEP inválido: ${zipCode} (formato incorreto)`);
+    }
+    
+    // Validação adicional: CEPs conhecidos como inválidos
+    const invalidCeps = ['00000000', '11111111', '22222222', '33333333', '44444444', '55555555', '66666666', '77777777', '88888888', '99999999'];
+    if (invalidCeps.includes(cleanZip)) {
+      console.log(`❌ CEP inválido: ${zipCode} (CEP genérico)`);
+      return false;
     }
     
     return isValid;
