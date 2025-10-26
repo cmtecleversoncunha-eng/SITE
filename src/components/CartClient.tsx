@@ -2,15 +2,49 @@
 
 import { useCart } from '@/hooks/useCart';
 import { Button } from './ui/button';
-import { Trash2, Plus, Minus, ShoppingCart } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, LogIn, UserPlus } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
+import { useState, useEffect } from 'react';
+import { User } from '@supabase/supabase-js';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from './ui/dialog';
 
 export function CartClient() {
   const { cart, removeFromCart, updateQuantity, subtotal, total, clearCart, shipping } = useCart();
   const { toast } = useToast();
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  // Verificar autenticação
+  useEffect(() => {
+    const checkUser = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      setIsLoading(false);
+    };
+
+    checkUser();
+
+    // Escutar mudanças de autenticação
+    const supabase = createClient();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleClearCart = () => {
     clearCart();
@@ -43,6 +77,11 @@ export function CartClient() {
   }
 
   const handleCheckout = () => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    
     // Redirecionar para a página de checkout
     window.location.href = '/checkout';
   };
@@ -168,11 +207,12 @@ export function CartClient() {
         <Button 
           className="w-full mt-8 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 text-lg border-0" 
           onClick={handleCheckout}
+          disabled={isLoading}
         >
           <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
           </svg>
-          Finalizar Compra
+          {isLoading ? 'Carregando...' : 'Finalizar Compra'}
         </Button>
         
         <div className="mt-6 text-center">
@@ -184,6 +224,49 @@ export function CartClient() {
           </p>
         </div>
       </div>
+
+      {/* Modal de Autenticação */}
+      <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-2xl font-bold text-slate-900 dark:text-white">
+              🔐 Autenticação Necessária
+            </DialogTitle>
+            <DialogDescription className="text-center text-slate-600 dark:text-slate-400">
+              Para finalizar sua compra, você precisa estar logado em sua conta.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 mt-6">
+            <Link href="/login" className="w-full">
+              <Button 
+                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                onClick={() => setShowAuthModal(false)}
+              >
+                <LogIn className="w-5 h-5 mr-2" />
+                Fazer Login
+              </Button>
+            </Link>
+            
+            <Link href="/register" className="w-full">
+              <Button 
+                variant="outline"
+                className="w-full border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                onClick={() => setShowAuthModal(false)}
+              >
+                <UserPlus className="w-5 h-5 mr-2" />
+                Criar Conta
+              </Button>
+            </Link>
+          </div>
+          
+          <div className="text-center mt-6">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Após fazer login, você poderá finalizar sua compra com segurança.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
